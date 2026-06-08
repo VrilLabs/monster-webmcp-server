@@ -268,6 +268,8 @@ bun run build:all
 | Edge 90+ | Polyfill | Full support |
 | Node.js/Bun | In-memory | Server components |
 
+
 ## License
 
-MIT
+*Copyright (c) 2026 VLABS, LLC. All rights reserved.* <br>
+*[VRIL LABS Open Source License v1.0](https://github.com/VRIL-LABS/vril-zip/blob/main/LICENSE) — https://vril.li/license*.
