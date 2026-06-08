@@ -1,0 +1,569 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>MonsterWebMCP - E-Commerce Example</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #0a0a0a; color: #e0e0e0; }
+    .header { background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%); border-bottom: 1px solid #2a2a4a; padding: 1rem 2rem; display: flex; justify-content: space-between; align-items: center; }
+    .header h1 { font-size: 1.4rem; background: linear-gradient(135deg, #6366f1, #a855f7); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+    .header .badge { font-size: 0.7rem; background: #6366f1; color: white; padding: 2px 8px; border-radius: 10px; vertical-align: middle; margin-left: 8px; }
+    .status-bar { display: flex; gap: 12px; align-items: center; }
+    .status { display: inline-flex; align-items: center; gap: 6px; font-size: 0.8rem; padding: 3px 10px; border-radius: 20px; }
+    .status.ok { background: #064e3b; color: #6ee7b7; }
+    .status.warn { background: #713f12; color: #fbbf24; }
+    .dot { width: 6px; height: 6px; border-radius: 50%; }
+    .status.ok .dot { background: #6ee7b7; }
+    .status.warn .dot { background: #fbbf24; }
+    .container { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; padding: 1.5rem 2rem; }
+    .card { background: #1a1a2e; border: 1px solid #2a2a4a; border-radius: 12px; padding: 1.25rem; }
+    .card h2 { font-size: 1rem; color: #a855f7; margin-bottom: 0.75rem; display: flex; align-items: center; gap: 8px; }
+    .card h2 .count { background: #6366f1; color: white; font-size: 0.7rem; padding: 1px 8px; border-radius: 10px; }
+    .full-width { grid-column: 1 / -1; }
+    .tool-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 0.75rem; }
+    .tool-card { background: #0d0d1a; border: 1px solid #2a2a4a; border-radius: 8px; padding: 1rem; }
+    .tool-card .tool-name { font-family: 'Fira Code', monospace; color: #818cf8; font-size: 0.9rem; margin-bottom: 4px; }
+    .tool-card .tool-desc { color: #888; font-size: 0.8rem; margin-bottom: 8px; }
+    .tool-card .tool-annotations { display: flex; gap: 4px; flex-wrap: wrap; }
+    .annotation { font-size: 0.65rem; padding: 2px 6px; border-radius: 4px; }
+    .annotation.readonly { background: #064e3b; color: #6ee7b7; }
+    .annotation.destructive { background: #7f1d1d; color: #fca5a5; }
+    .annotation.idempotent { background: #1e3a5f; color: #93c5fd; }
+    .annotation.untrusted { background: #713f12; color: #fbbf24; }
+    .product-list { display: grid; gap: 0.5rem; }
+    .product-item { display: flex; justify-content: space-between; align-items: center; padding: 8px 12px; background: #0d0d1a; border-radius: 6px; border: 1px solid #2a2a4a; }
+    .product-item .name { color: #e0e0e0; }
+    .product-item .price { color: #6ee7b7; font-family: 'Fira Code', monospace; }
+    .product-item .qty { color: #818cf8; font-size: 0.85rem; }
+    .cart-summary { display: flex; justify-content: space-between; align-items: center; margin-top: 0.75rem; padding-top: 0.75rem; border-top: 1px solid #2a2a4a; }
+    .cart-total { font-size: 1.1rem; color: #6ee7b7; }
+    .log { background: #0d0d1a; border: 1px solid #2a2a4a; border-radius: 8px; padding: 0.75rem; font-family: 'Fira Code', monospace; font-size: 0.75rem; max-height: 200px; overflow-y: auto; color: #6ee7b7; }
+    .log-entry { margin-bottom: 3px; }
+    .log-entry.error { color: #f87171; }
+    .log-entry.info { color: #818cf8; }
+    form[toolname] { background: #0d0d1a; border: 1px solid #2a2a4a; border-radius: 8px; padding: 1rem; margin-bottom: 0.75rem; }
+    form[toolname] h3 { font-size: 0.9rem; color: #818cf8; margin-bottom: 0.5rem; }
+    form[toolname] label { display: block; font-size: 0.8rem; color: #888; margin-bottom: 2px; margin-top: 8px; }
+    form[toolname] input, form[toolname] select { width: 100%; background: #1a1a2e; border: 1px solid #2a2a4a; color: #e0e0e0; padding: 6px 10px; border-radius: 4px; font-size: 0.85rem; }
+    form[toolname] button { background: #6366f1; color: white; border: none; padding: 6px 16px; border-radius: 4px; cursor: pointer; font-size: 0.85rem; margin-top: 8px; }
+    form[toolname] button:hover { background: #4f46e5; }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <h1>🛍️ MonsterShop<span class="badge">WebMCP</span></h1>
+    <div class="status-bar">
+      <span id="transportStatus" class="status warn"><span class="dot"></span>Detecting...</span>
+      <span style="font-size:0.8rem; color:#888;">Tools: <strong id="toolCount">0</strong></span>
+    </div>
+  </div>
+
+  <div class="container">
+    <!-- Declarative Checkout Form -->
+    <div class="card">
+      <h2>🧾 Checkout Form <span class="count">Declarative</span></h2>
+      <form toolname="checkout" tooldescription="Start the checkout process for items in the cart" toolautosubmit>
+        <h3>Checkout</h3>
+        <label>Shipping Method</label>
+        <select name="shipping_method" toolparamdescription="Shipping method: standard, express, or overnight" required>
+          <option value="">Select...</option>
+          <option value="standard">Standard (3-5 days)</option>
+          <option value="express">Express (1-2 days)</option>
+          <option value="overnight">Overnight</option>
+        </select>
+        <label>Discount Code</label>
+        <input type="text" name="discount_code" toolparamdescription="Optional discount/promo code" placeholder="e.g. SAVE10">
+        <button type="submit">Place Order</button>
+      </form>
+
+      <form toolname="contact_support" tooldescription="Contact customer support for help with an order">
+        <h3>Contact Support</h3>
+        <label>Subject</label>
+        <input type="text" name="subject" toolparamdescription="Subject of the support request" required placeholder="Order issue">
+        <label>Message</label>
+        <input type="text" name="message" toolparamdescription="Detailed description of the issue" required placeholder="Describe your issue...">
+        <button type="submit">Send</button>
+      </form>
+    </div>
+
+    <!-- Cart Display -->
+    <div class="card">
+      <h2>🛒 Shopping Cart <span class="count" id="cartItemCount">0</span></h2>
+      <div id="cartItems" class="product-list">
+        <p style="color:#888; font-size:0.85rem;">Cart is empty</p>
+      </div>
+      <div class="cart-summary">
+        <span style="color:#888;">Total:</span>
+        <span class="cart-total" id="cartTotal">$0.00</span>
+      </div>
+    </div>
+
+    <!-- Registered Tools -->
+    <div class="card full-width">
+      <h2>🔧 Registered Tools <span class="count" id="toolCountBadge">0</span></h2>
+      <div id="toolGrid" class="tool-grid">
+        <p style="color:#888; font-size:0.85rem;">Loading...</p>
+      </div>
+    </div>
+
+    <!-- Event Log -->
+    <div class="card full-width">
+      <h2>📋 Event Log</h2>
+      <div id="log" class="log"></div>
+    </div>
+  </div>
+
+  <!-- Load MonsterWebMCP from local bundle -->
+  <script src="../dist/monster-webmcp.js"></script>
+  <script>
+    // ─── Mock Product Database ───────────────────────────────────────────
+    const products = [
+      { id: 'p1', name: 'Wireless Headphones', price: 79.99, category: 'electronics', stock: 15 },
+      { id: 'p2', name: 'Organic Coffee Beans', price: 24.99, category: 'food', stock: 50 },
+      { id: 'p3', name: 'Running Shoes', price: 119.99, category: 'clothing', stock: 8 },
+      { id: 'p4', name: 'Smart Watch', price: 299.99, category: 'electronics', stock: 5 },
+      { id: 'p5', name: 'Yoga Mat', price: 34.99, category: 'home', stock: 20 },
+      { id: 'p6', name: 'Bluetooth Speaker', price: 49.99, category: 'electronics', stock: 12 },
+      { id: 'p7', name: 'Winter Jacket', price: 189.99, category: 'clothing', stock: 3 },
+      { id: 'p8', name: 'Plant Pot Set', price: 29.99, category: 'home', stock: 25 },
+    ];
+
+    // ─── Shopping Cart State ─────────────────────────────────────────────
+    let cart = [];
+    let orderIdCounter = 1000;
+
+    // ─── Initialize MonsterMCP ───────────────────────────────────────────
+    const monster = new MonsterMCP({ debug: true });
+
+    // Update status display
+    const isNative = monster.isNativeAvailable();
+    const transportType = monster.getTransportType();
+    document.getElementById('transportType').textContent = '';
+    const statusEl = document.getElementById('transportStatus');
+    statusEl.className = isNative ? 'status ok' : 'status warn';
+    statusEl.innerHTML = `<span class="dot"></span>${isNative ? 'Native WebMCP' : 'Polyfill'} (${transportType})`;
+
+    // ─── Log Function ────────────────────────────────────────────────────
+    function log(message, type = '') {
+      const logEl = document.getElementById('log');
+      const entry = document.createElement('div');
+      entry.className = 'log-entry ' + type;
+      entry.textContent = `[${new Date().toLocaleTimeString()}] ${message}`;
+      logEl.appendChild(entry);
+      logEl.scrollTop = logEl.scrollHeight;
+    }
+
+    // ─── Tool 1: Product Search ──────────────────────────────────────────
+    monster.registerTool({
+      name: 'search_products',
+      title: 'Search Products',
+      description: 'Search the product catalog by keyword, category, or price range',
+      inputSchema: {
+        type: 'object',
+        properties: {
+          query: {
+            type: 'string',
+            description: 'Search keyword to match against product names',
+          },
+          category: {
+            type: 'string',
+            description: 'Product category filter',
+            enum: ['electronics', 'clothing', 'food', 'home'],
+          },
+          maxPrice: {
+            type: 'number',
+            description: 'Maximum price filter',
+            minimum: 0,
+          },
+          inStock: {
+            type: 'boolean',
+            description: 'Only show products that are in stock',
+            default: true,
+          },
+        },
+        required: ['query'],
+        additionalProperties: false,
+      },
+      annotations: {
+        readOnlyHint: true,
+        idempotentHint: true,
+      },
+      execute: async (args) => {
+        const { query, category, maxPrice, inStock = true } = args;
+        let results = products.filter((p) => {
+          const matchesQuery = p.name.toLowerCase().includes(String(query).toLowerCase());
+          const matchesCategory = !category || p.category === category;
+          const matchesPrice = !maxPrice || p.price <= Number(maxPrice);
+          const matchesStock = !inStock || p.stock > 0;
+          return matchesQuery && matchesCategory && matchesPrice && matchesStock;
+        });
+
+        return {
+          content: [
+            {
+              type: 'text',
+              text: results.length > 0
+                ? JSON.stringify(results, null, 2)
+                : 'No products found matching your criteria.',
+            },
+          ],
+        };
+      },
+    });
+
+    // ─── Tool 2: Add to Cart ────────────────────────────────────────────
+    monster.registerTool({
+      name: 'add_to_cart',
+      title: 'Add to Cart',
+      description: 'Add a product to the shopping cart by product ID',
+      inputSchema: {
+        type: 'object',
+        properties: {
+          productId: {
+            type: 'string',
+            description: 'The ID of the product to add (p1-p8)',
+          },
+          quantity: {
+            type: 'number',
+            description: 'Number of items to add',
+            minimum: 1,
+            maximum: 10,
+            default: 1,
+          },
+        },
+        required: ['productId'],
+        additionalProperties: false,
+      },
+      execute: async (args) => {
+        const { productId, quantity = 1 } = args;
+        const product = products.find((p) => p.id === productId);
+
+        if (!product) {
+          return {
+            content: [{ type: 'text', text: `Product "${productId}" not found. Available: p1-p8` }],
+            isError: true,
+          };
+        }
+
+        if (product.stock < Number(quantity)) {
+          return {
+            content: [{ type: 'text', text: `Insufficient stock. Available: ${product.stock}` }],
+            isError: true,
+          };
+        }
+
+        const existing = cart.find((item) => item.product.id === productId);
+        if (existing) {
+          existing.quantity += Number(quantity);
+        } else {
+          cart.push({ product, quantity: Number(quantity) });
+        }
+
+        updateCartDisplay();
+
+        return {
+          content: [
+            {
+              type: 'text',
+              text: `Added ${quantity}x ${product.name} to cart. Cart total: $${getCartTotal().toFixed(2)}`,
+            },
+          ],
+        };
+      },
+    });
+
+    // ─── Tool 3: Remove from Cart ───────────────────────────────────────
+    monster.registerTool({
+      name: 'remove_from_cart',
+      title: 'Remove from Cart',
+      description: 'Remove a product from the shopping cart',
+      inputSchema: {
+        type: 'object',
+        properties: {
+          productId: {
+            type: 'string',
+            description: 'The ID of the product to remove',
+          },
+        },
+        required: ['productId'],
+        additionalProperties: false,
+      },
+      execute: async (args) => {
+        const { productId } = args;
+        const index = cart.findIndex((item) => item.product.id === productId);
+
+        if (index === -1) {
+          return {
+            content: [{ type: 'text', text: `Product "${productId}" not in cart` }],
+            isError: true,
+          };
+        }
+
+        const removed = cart.splice(index, 1)[0];
+        updateCartDisplay();
+
+        return {
+          content: [
+            {
+              type: 'text',
+              text: `Removed ${removed.product.name} from cart. Cart total: $${getCartTotal().toFixed(2)}`,
+            },
+          ],
+        };
+      },
+    });
+
+    // ─── Tool 4: View Cart ──────────────────────────────────────────────
+    monster.registerTool({
+      name: 'view_cart',
+      title: 'View Cart',
+      description: 'View the current contents of the shopping cart',
+      inputSchema: {
+        type: 'object',
+        properties: {},
+        additionalProperties: false,
+      },
+      annotations: {
+        readOnlyHint: true,
+        idempotentHint: true,
+      },
+      execute: async () => {
+        if (cart.length === 0) {
+          return {
+            content: [{ type: 'text', text: 'Cart is empty' }],
+          };
+        }
+
+        const items = cart.map((item) => ({
+          product: item.product.name,
+          price: `$${item.product.price.toFixed(2)}`,
+          quantity: item.quantity,
+          subtotal: `$${(item.product.price * item.quantity).toFixed(2)}`,
+        }));
+
+        return {
+          content: [
+            {
+              type: 'text',
+              text: JSON.stringify({ items, total: `$${getCartTotal().toFixed(2)}` }, null, 2),
+            },
+          ],
+        };
+      },
+    });
+
+    // ─── Tool 5: Checkout ────────────────────────────────────────────────
+    monster.registerTool({
+      name: 'process_checkout',
+      title: 'Process Checkout',
+      description: 'Process the checkout for all items in the cart',
+      inputSchema: {
+        type: 'object',
+        properties: {
+          shipping_method: {
+            type: 'string',
+            description: 'Shipping method',
+            enum: ['standard', 'express', 'overnight'],
+          },
+          discount_code: {
+            type: 'string',
+            description: 'Optional discount/promo code',
+          },
+        },
+        required: ['shipping_method'],
+        additionalProperties: false,
+      },
+      annotations: {
+        destructiveHint: true,
+      },
+      execute: async (args) => {
+        if (cart.length === 0) {
+          return {
+            content: [{ type: 'text', text: 'Cannot checkout: cart is empty' }],
+            isError: true,
+          };
+        }
+
+        const { shipping_method, discount_code } = args;
+        const shippingCosts = { standard: 5.99, express: 14.99, overnight: 24.99 };
+        const shippingCost = shippingCosts[shipping_method] ?? 5.99;
+
+        let subtotal = getCartTotal();
+        let discount = 0;
+
+        if (discount_code === 'SAVE10') {
+          discount = subtotal * 0.1;
+        } else if (discount_code === 'SAVE20') {
+          discount = subtotal * 0.2;
+        }
+
+        const total = subtotal - discount + shippingCost;
+        const orderId = `ORD-${++orderIdCounter}`;
+
+        // Clear cart
+        cart = [];
+        updateCartDisplay();
+
+        return {
+          content: [
+            {
+              type: 'text',
+              text: JSON.stringify({
+                orderId,
+                status: 'confirmed',
+                subtotal: `$${subtotal.toFixed(2)}`,
+                discount: discount > 0 ? `-$${discount.toFixed(2)}` : '$0.00',
+                shipping: `$${shippingCost.toFixed(2)} (${shipping_method})`,
+                total: `$${total.toFixed(2)}`,
+              }, null, 2),
+            },
+          ],
+        };
+      },
+    });
+
+    // ─── Tool 6: Get Product Details ─────────────────────────────────────
+    monster.registerTool({
+      name: 'get_product_details',
+      title: 'Get Product Details',
+      description: 'Get detailed information about a specific product',
+      inputSchema: {
+        type: 'object',
+        properties: {
+          productId: {
+            type: 'string',
+            description: 'The product ID (p1-p8)',
+          },
+        },
+        required: ['productId'],
+        additionalProperties: false,
+      },
+      annotations: {
+        readOnlyHint: true,
+        idempotentHint: true,
+      },
+      execute: async (args) => {
+        const { productId } = args;
+        const product = products.find((p) => p.id === productId);
+
+        if (!product) {
+          return {
+            content: [{ type: 'text', text: `Product "${productId}" not found` }],
+            isError: true,
+          };
+        }
+
+        return {
+          content: [
+            {
+              type: 'text',
+              text: JSON.stringify(product, null, 2),
+            },
+          ],
+        };
+      },
+    });
+
+    // ─── Subscribe to Tool Changes ───────────────────────────────────────
+    monster.onToolChange((event) => {
+      log(`Tool ${event.type}: ${event.toolName}`, 'info');
+      updateToolDisplay();
+    });
+
+    // ─── Handle Declarative Form Submissions ─────────────────────────────
+    document.addEventListener('toolsubmit', (e) => {
+      const { args, respondWith, form } = e.detail;
+      const toolName = form.getAttribute('toolname');
+      log(`Form submitted: ${toolName}`, 'info');
+
+      if (toolName === 'checkout') {
+        // Delegate to the process_checkout tool
+        monster.executeTool('process_checkout', args).then((result) => {
+          respondWith(result);
+        });
+      } else if (toolName === 'contact_support') {
+        respondWith({
+          content: [
+            {
+              type: 'text',
+              text: `Support request received. Subject: ${args.subject}. We'll respond within 24 hours.`,
+            },
+          ],
+        });
+      }
+    });
+
+    // ─── UI Update Functions ─────────────────────────────────────────────
+    function getCartTotal() {
+      return cart.reduce((sum, item) => sum + item.product.price * item.quantity, 0);
+    }
+
+    function updateCartDisplay() {
+      const cartEl = document.getElementById('cartItems');
+      const countEl = document.getElementById('cartItemCount');
+      const totalEl = document.getElementById('cartTotal');
+
+      countEl.textContent = cart.reduce((sum, item) => sum + item.quantity, 0);
+
+      if (cart.length === 0) {
+        cartEl.innerHTML = '<p style="color:#888; font-size:0.85rem;">Cart is empty</p>';
+        totalEl.textContent = '$0.00';
+        return;
+      }
+
+      cartEl.innerHTML = cart
+        .map(
+          (item) => `
+        <div class="product-item">
+          <span class="name">${item.product.name}</span>
+          <span class="qty">x${item.quantity}</span>
+          <span class="price">$${(item.product.price * item.quantity).toFixed(2)}</span>
+        </div>
+      `
+        )
+        .join('');
+
+      totalEl.textContent = `$${getCartTotal().toFixed(2)}`;
+    }
+
+    function updateToolDisplay() {
+      const tools = monster.getTools();
+      const grid = document.getElementById('toolGrid');
+      const countBadge = document.getElementById('toolCountBadge');
+      const countHeader = document.getElementById('toolCount');
+
+      countBadge.textContent = tools.length;
+      countHeader.textContent = tools.length;
+
+      if (tools.length === 0) {
+        grid.innerHTML = '<p style="color:#888; font-size:0.85rem;">No tools registered</p>';
+        return;
+      }
+
+      grid.innerHTML = tools
+        .map((tool) => {
+          const annotations = [];
+          if (tool.annotations?.readOnlyHint) annotations.push('<span class="annotation readonly">read-only</span>');
+          if (tool.annotations?.destructiveHint) annotations.push('<span class="annotation destructive">destructive</span>');
+          if (tool.annotations?.idempotentHint) annotations.push('<span class="annotation idempotent">idempotent</span>');
+          if (tool.annotations?.untrustedContentHint) annotations.push('<span class="annotation untrusted">untrusted</span>');
+
+          return `
+          <div class="tool-card">
+            <div class="tool-name">${tool.name}</div>
+            <div class="tool-desc">${tool.description}</div>
+            <div class="tool-annotations">${annotations.join('')}</div>
+          </div>
+        `;
+        })
+        .join('');
+    }
+
+    updateToolDisplay();
+    log('MonsterShop initialized with 6 imperative tools + 2 declarative forms', 'info');
+    log(`Transport: ${transportType} | Native WebMCP: ${isNative ? 'available' : 'not available'}`, 'info');
+  </script>
+</body>
+</html>

@@ -1,0 +1,61 @@
+{
+  "name": "monster-webmcp",
+  "version": "1.0.0",
+  "description": "Production-ready, universally-compatible WebMCP runtime — bridges W3C WebMCP (document.modelContext) with the MCP ecosystem",
+  "main": "dist/monster-webmcp.js",
+  "module": "dist/monster-webmcp.esm.js",
+  "types": "dist/index.d.ts",
+  "browser": "dist/monster-webmcp.js",
+  "exports": {
+    ".": {
+      "import": "./dist/monster-webmcp.esm.js",
+      "require": "./dist/monster-webmcp.js",
+      "types": "./dist/index.d.ts",
+      "browser": "./dist/monster-webmcp.js"
+    },
+    "./server": {
+      "import": "./dist/server/local-relay.js",
+      "require": "./dist/server/local-relay.js",
+      "types": "./dist/server/index.d.ts",
+      "node": "./dist/server/local-relay.js"
+    }
+  },
+  "files": [
+    "dist",
+    "README.md"
+  ],
+  "scripts": {
+    "build": "bun build src/index.ts --outdir dist --target browser --minify --sourcemap && mv dist/index.js dist/monster-webmcp.js && mv dist/index.js.map dist/monster-webmcp.js.map",
+    "build:esm": "bun build src/index.ts --outdir dist --target browser --format esm --sourcemap && mv dist/index.js dist/monster-webmcp.esm.js && mv dist/index.js.map dist/monster-webmcp.esm.js.map",
+    "build:node": "bun build src/server/local-relay.ts src/server/http-server.ts --outdir dist/server --target node --sourcemap",
+    "build:all": "bun run clean && bun run build && bun run build:esm && bun run build:node",
+    "dev": "bun --watch src/index.ts",
+    "typecheck": "tsc --noEmit",
+    "clean": "rm -rf dist"
+  },
+  "keywords": [
+    "webmcp",
+    "mcp",
+    "model-context-protocol",
+    "ai",
+    "agent",
+    "browser",
+    "w3c",
+    "document.modelContext",
+    "tool-registry",
+    "polyfill"
+  ],
+  "author": "MonsterWebMCP Contributors",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/monster-webmcp/monster-webmcp"
+  },
+  "devDependencies": {
+    "typescript": "^5.7.0",
+    "@types/bun": "^1.1.0"
+  },
+  "engines": {
+    "bun": ">=1.0.0"
+  }
+}

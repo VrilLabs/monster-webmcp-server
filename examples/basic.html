@@ -1,0 +1,196 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>MonsterWebMCP - Basic Example</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #0a0a0a; color: #e0e0e0; padding: 2rem; }
+    h1 { font-size: 1.8rem; margin-bottom: 0.5rem; background: linear-gradient(135deg, #6366f1, #a855f7); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+    .subtitle { color: #888; margin-bottom: 2rem; }
+    .card { background: #1a1a2e; border: 1px solid #2a2a4a; border-radius: 12px; padding: 1.5rem; margin-bottom: 1rem; }
+    .card h2 { font-size: 1.1rem; color: #a855f7; margin-bottom: 0.75rem; }
+    .status { display: inline-flex; align-items: center; gap: 6px; font-size: 0.85rem; padding: 4px 12px; border-radius: 20px; }
+    .status.ok { background: #064e3b; color: #6ee7b7; }
+    .status.warn { background: #713f12; color: #fbbf24; }
+    .dot { width: 6px; height: 6px; border-radius: 50%; }
+    .status.ok .dot { background: #6ee7b7; }
+    .status.warn .dot { background: #fbbf24; }
+    .tool-list { list-style: none; }
+    .tool-list li { padding: 8px 0; border-bottom: 1px solid #2a2a4a; display: flex; justify-content: space-between; align-items: center; }
+    .tool-list li:last-child { border-bottom: none; }
+    .tool-name { font-family: 'Fira Code', monospace; color: #818cf8; }
+    .tool-desc { color: #888; font-size: 0.85rem; }
+    .log { background: #0d0d1a; border: 1px solid #2a2a4a; border-radius: 8px; padding: 1rem; font-family: 'Fira Code', monospace; font-size: 0.8rem; max-height: 200px; overflow-y: auto; color: #6ee7b7; }
+    .log-entry { margin-bottom: 4px; }
+    .log-entry.error { color: #f87171; }
+    button { background: #6366f1; color: white; border: none; padding: 8px 16px; border-radius: 6px; cursor: pointer; font-size: 0.85rem; margin-top: 0.5rem; }
+    button:hover { background: #4f46e5; }
+    input { background: #0d0d1a; border: 1px solid #2a2a4a; color: #e0e0e0; padding: 8px 12px; border-radius: 6px; font-size: 0.85rem; margin-top: 0.5rem; margin-right: 0.5rem; }
+  </style>
+</head>
+<body>
+  <h1>MonsterWebMCP</h1>
+  <p class="subtitle">Basic Example — One tool, zero configuration</p>
+
+  <div class="card">
+    <h2>Runtime Status</h2>
+    <p><span id="transportStatus" class="status warn"><span class="dot"></span>Detecting...</span></p>
+    <p style="margin-top:8px; font-size:0.85rem; color:#888;">Transport: <code id="transportType">—</code></p>
+  </div>
+
+  <div class="card">
+    <h2>Registered Tools</h2>
+    <ul id="toolList" class="tool-list">
+      <li style="color:#888;">No tools registered yet</li>
+    </ul>
+  </div>
+
+  <div class="card">
+    <h2>Test Tool Execution</h2>
+    <input type="text" id="greetName" placeholder="Enter a name" value="World">
+    <button id="executeBtn">Execute greet</button>
+    <p id="executionResult" style="margin-top:8px; font-size:0.85rem; color:#888;"></p>
+  </div>
+
+  <div class="card">
+    <h2>Event Log</h2>
+    <div id="log" class="log"></div>
+  </div>
+
+  <!-- Load MonsterWebMCP from local bundle -->
+  <script src="../dist/monster-webmcp.js"></script>
+  <script>
+    // Initialize MonsterMCP with default settings
+    // - webmcp: true (auto-detect native document.modelContext)
+    // - polyfill: true (fall back to polyfill if native unavailable)
+    // - declarative: true (process HTML forms with toolname attribute)
+    const monster = new MonsterMCP({ debug: true });
+
+    // Update status display
+    const transportType = monster.getTransportType();
+    const isNative = monster.isNativeAvailable();
+
+    document.getElementById('transportType').textContent = transportType;
+    const statusEl = document.getElementById('transportStatus');
+    statusEl.className = isNative ? 'status ok' : 'status warn';
+    statusEl.innerHTML = `<span class="dot"></span>${isNative ? 'Native WebMCP' : 'Polyfill Mode'}`;
+
+    // Log function
+    function log(message, isError = false) {
+      const logEl = document.getElementById('log');
+      const entry = document.createElement('div');
+      entry.className = 'log-entry' + (isError ? ' error' : '');
+      entry.textContent = `[${new Date().toLocaleTimeString()}] ${message}`;
+      logEl.appendChild(entry);
+      logEl.scrollTop = logEl.scrollHeight;
+    }
+
+    // Register a simple greeting tool
+    monster.registerTool({
+      name: 'greet',
+      title: 'Greeting Tool',
+      description: 'Generate a personalized greeting message',
+      inputSchema: {
+        type: 'object',
+        properties: {
+          name: {
+            type: 'string',
+            description: 'The name to greet',
+            minLength: 1,
+            maxLength: 100,
+          },
+          language: {
+            type: 'string',
+            description: 'Language for the greeting',
+            enum: ['english', 'spanish', 'french', 'german', 'japanese'],
+            default: 'english',
+          },
+        },
+        required: ['name'],
+        additionalProperties: false,
+      },
+      execute: async (args) => {
+        const greetings = {
+          english: 'Hello',
+          spanish: 'Hola',
+          french: 'Bonjour',
+          german: 'Guten Tag',
+          japanese: 'こんにちは',
+        };
+        const lang = args.language || 'english';
+        const greeting = greetings[lang] || greetings.english;
+        const name = args.name;
+
+        return {
+          content: [
+            {
+              type: 'text',
+              text: `${greeting}, ${name}! Welcome to MonsterWebMCP.`,
+            },
+          ],
+        };
+      },
+    });
+
+    log('Tool registered: greet');
+
+    // Subscribe to tool change events
+    monster.onToolChange((event) => {
+      log(`Tool ${event.type}: ${event.toolName}`);
+      updateToolList();
+    });
+
+    // Update tool list display
+    function updateToolList() {
+      const tools = monster.getTools();
+      const listEl = document.getElementById('toolList');
+
+      if (tools.length === 0) {
+        listEl.innerHTML = '<li style="color:#888;">No tools registered</li>';
+        return;
+      }
+
+      listEl.innerHTML = tools
+        .map(
+          (tool) => `
+        <li>
+          <div>
+            <span class="tool-name">${tool.name}</span>
+            <span class="tool-desc">${tool.description}</span>
+          </div>
+        </li>
+      `
+        )
+        .join('');
+    }
+
+    updateToolList();
+
+    // Test execution button
+    document.getElementById('executeBtn').addEventListener('click', async () => {
+      const name = document.getElementById('greetName').value;
+      const resultEl = document.getElementById('executionResult');
+
+      log(`Executing greet with name="${name}"`);
+
+      try {
+        const result = await monster.executeTool('greet', { name });
+        if (result.isError) {
+          resultEl.style.color = '#f87171';
+          log(`Error: ${result.content[0].text}`, true);
+        } else {
+          resultEl.style.color = '#6ee7b7';
+          log(`Result: ${result.content[0].text}`);
+        }
+        resultEl.textContent = result.content[0].text;
+      } catch (err) {
+        resultEl.style.color = '#f87171';
+        resultEl.textContent = err.message;
+        log(`Exception: ${err.message}`, true);
+      }
+    });
+  </script>
+</body>
+</html>
