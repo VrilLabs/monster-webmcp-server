@@ -1,3 +1,5 @@
+[![MseeP.ai Security Assessment Badge](https://mseep.net/pr/vrillabs-monster-webmcp-server-badge.png)](https://mseep.ai/app/vrillabs-monster-webmcp-server)
+
 # MonsterWebMCP
 
 **Production-ready, universally-compatible WebMCP runtime**
